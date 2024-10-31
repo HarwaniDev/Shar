@@ -9,7 +9,7 @@ const TokenCreatorComponent = dynamic(() => import("@/components/token-creator")
 
 export default function Home() {
   return (
-    <ConnectionProvider endpoint={"https://solana-devnet.g.alchemy.com/v2/4DaeWytC_FliNNYs-DZdZcQ8VAQ__EwH"}>
+    <ConnectionProvider endpoint={process.env.RPC_ENDPOINT ?? ""}>
       <WalletProvider wallets={[]} autoConnect>
         <WalletModalProvider>
           <TokenCreatorComponent />
