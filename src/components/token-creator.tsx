@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
 import { Keypair, SystemProgram, Transaction } from "@solana/web3.js"
-import { createInitializeMetadataPointerInstruction, createInitializeMintInstruction, ExtensionType, getMintLen, LENGTH_SIZE, TOKEN_2022_PROGRAM_ID, TYPE_SIZE } from "@solana/spl-token";
+import { createAssociatedTokenAccount, createAssociatedTokenAccountInstruction, createInitializeMetadataPointerInstruction, createInitializeMintInstruction, createMintToInstruction, ExtensionType, getAssociatedTokenAddressSync, getMintLen, LENGTH_SIZE, TOKEN_2022_PROGRAM_ID, TYPE_SIZE } from "@solana/spl-token";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { createInitializeInstruction, pack } from "@solana/spl-token-metadata"
+import 'dotenv/config'
+
 export default function TokenCreatorComponent() {
 
   const { connection } = useConnection();
@@ -42,9 +44,9 @@ export default function TokenCreatorComponent() {
     const mintAccountKeypair = Keypair.generate();
     const metadata = {
       mint: mintAccountKeypair.publicKey,
-      name: name,
-      symbol: symbol,
-      uri: url,
+      name: "LUMINA",
+      symbol: "LUM",
+      uri: "https://fastly.picsum.photos/id/237/200/300.jpg?hmac=TmmQSbShHz9CdQm0NkEjx1Dyh_Y984R9LpNrpvH2D_U",
       additionalMetadata: []
     }
 
@@ -91,14 +93,37 @@ export default function TokenCreatorComponent() {
     transaction.partialSign(mintAccountKeypair);
 
     await wallet.sendTransaction(transaction, connection);
-
+    console.log(`Token mint created at ${mintAccountKeypair.publicKey.toBase58()}`);
     
+    //get the public key of ata
+    const associatedTokenAccount = getAssociatedTokenAddressSync(
+      mintAccountKeypair.publicKey,
+      wallet.publicKey,
+      false,
+      TOKEN_2022_PROGRAM_ID
+    )
+    console.log(associatedTokenAccount.toBase58());
 
+    const transaction2 = new Transaction().add(
+      //create ata with the public key we got from getAssociatedTokenAddressSync
+      createAssociatedTokenAccountInstruction(wallet.publicKey,associatedTokenAccount,wallet.publicKey, mintAccountKeypair.publicKey, TOKEN_2022_PROGRAM_ID)
+    )
+
+    await wallet.sendTransaction(transaction2,connection);
+
+    const transaction3 = new Transaction().add(
+      //mint token to ata
+      createMintToInstruction(mintAccountKeypair.publicKey, associatedTokenAccount,wallet.publicKey,1000000000,[], TOKEN_2022_PROGRAM_ID)
+    )
+
+    await wallet.sendTransaction(transaction3,connection);
+    console.log("Minted!")
   }
 
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-200 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+      
       <Card className="w-full max-w-none mx-auto bg-white dark:bg-gray-800 shadow-xl">
         <CardHeader>
           <div className="flex justify-between items-center mb-4">
@@ -126,11 +151,11 @@ export default function TokenCreatorComponent() {
             <Input
               id="name"
               name="name"
-              placeholder="Enter token name"
+              placeholder={process.env.RPC_ENDPOINT}
               onChange={(e) => {
                 setName(e.target.value);
               }}
-              required
+              
               className="w-3/4 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
@@ -143,7 +168,7 @@ export default function TokenCreatorComponent() {
               onChange={(e) => {
                 setSymbol(e.target.value);
               }}
-              required
+              
               className="w-3/4 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
@@ -157,7 +182,7 @@ export default function TokenCreatorComponent() {
               onChange={(e) => {
                 setUrl(e.target.value);
               }}
-              required
+              
               className="w-3/4 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
@@ -184,14 +209,14 @@ export default function TokenCreatorComponent() {
               onChange={(e) => {
                 setTotalSupply(e.target.value);
               }}
-              required
+              
               min="1"
               className="w-3/4 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-3/4 bg-green-500 hover:bg-green-600 text-white" >
+          <Button type="submit" onClick={createToken} className="w-3/4 bg-green-500 hover:bg-green-600 text-white" >
             Create Token
           </Button>
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
